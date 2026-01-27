@@ -1,6 +1,4 @@
-#include "tests.h"
-#include "utils.h"
-#include "fw_baseline_cpu.h"
+#include "tests_runner.h"
 #include <iostream>
 #include <string>
 #include <stdexcept>
@@ -14,6 +12,7 @@ void printUsage(const char* programName) {
     std::cerr << "\n";
     std::cerr << "Examples:\n";
     std::cerr << "  " << programName << " baseline_cpu\n";
+    std::cerr << "  " << programName << " baseline_gpu\n";
 }
 
 int main(int argc, char* argv[]) {
@@ -34,19 +33,5 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    AlgorithmFuncCPU algorithm = nullptr;
-    try {
-        algorithm = getCPUAlgorithmFunc(algorithmName);
-    } catch (const std::out_of_range& e) {
-        std::cerr << "ERROR: Invalid algorithm name.\n";
-        std::cerr << e.what() << "\n";
-        return 1;
-    }
-
-    AlgorithmFuncCPU reference = fwBaselineCPU;
-
-    std::cout << "Running tests for algorithm: " << algorithmName << "\n";
-    runTests(algorithm, reference, algorithmName, tileSize);
-
-    return 0;
+    return TestsRunner::executeTests(algorithmName, tileSize);
 }

@@ -90,8 +90,10 @@ set_target_properties(bench_runner PROPERTIES
 # Executable: Tests Runner
 # =============================================================================
 add_executable(tests_runner
+    src/tests_main.cpp
     src/tests.cpp
-    src/tests_runner.cpp
+    src/tests_gpu.cu
+    src/tests_runner.cu
 )
 target_link_libraries(tests_runner PRIVATE fw_cuda_lib)
 set_target_properties(tests_runner PROPERTIES
