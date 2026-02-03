@@ -1,7 +1,7 @@
 #include "fw_baseline_gpu.cuh"
 #include "cuda_utils.cuh"
 
-constexpr int BLOCK_DIM = 16;
+constexpr int BLOCK_SIZE = 16;
 
 __global__ void fwBaselineKernel(WeightType* D, int n, int k) {
     int j = blockIdx.x * blockDim.x + threadIdx.x;
@@ -27,14 +27,14 @@ __global__ void fwBaselineKernel(WeightType* D, int n, int k) {
 void fwBaselineGPU(WeightType* d_D, int n, int tileSize) {
     (void)tileSize;
 
-    dim3 threadsPerBlock(BLOCK_DIM, BLOCK_DIM);
-    dim3 numBlocks(
-        (n + BLOCK_DIM - 1) / BLOCK_DIM,
-        (n + BLOCK_DIM - 1) / BLOCK_DIM
+    dim3 blockDim(BLOCK_SIZE, BLOCK_SIZE);
+    dim3 gridDim(
+        (n + BLOCK_SIZE - 1) / BLOCK_SIZE,
+        (n + BLOCK_SIZE - 1) / BLOCK_SIZE
     );
 
     for (int k = 0; k < n; ++k) {
-        fwBaselineKernel<<<numBlocks, threadsPerBlock>>>(d_D, n, k);
+        fwBaselineKernel<<<gridDim, blockDim>>>(d_D, n, k);
         checkKernelErrors();
     }
 
