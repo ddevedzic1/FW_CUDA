@@ -9,18 +9,7 @@ __global__ void fwBaselineKernel(WeightType* __restrict__ D, int n, int k) {
 
     if (i < n && j < n) {
         int ij = i * n + j;
-        int ik = i * n + k;
-        int kj = k * n + j;
-
-        WeightType d_ik = D[ik];
-        WeightType d_kj = D[kj];
-
-        if (d_ik != INF && d_kj != INF) {
-            WeightType newDist = d_ik + d_kj;
-            if (newDist < D[ij]) {
-                D[ij] = newDist;
-            }
-        }
+        D[ij] = min(D[ij], D[i * n + k] + D[k * n + j]);
     }
 }
 
