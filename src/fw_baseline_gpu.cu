@@ -3,7 +3,7 @@
 
 constexpr int BLOCK_SIZE = 16;
 
-__global__ void fwBaselineKernel(WeightType* D, int n, int k) {
+__global__ void fwBaselineKernel(WeightType* __restrict__ D, int n, int k) {
     int j = blockIdx.x * blockDim.x + threadIdx.x;
     int i = blockIdx.y * blockDim.y + threadIdx.y;
 
