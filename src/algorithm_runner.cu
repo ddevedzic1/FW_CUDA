@@ -59,7 +59,7 @@ int executeBenchmark(
             GPUMemory::copyToDevice(d_graph, h_graph, n);
 
             std::cout << "Running " << algorithmName << "...\n";
-            elapsed = Timer::measureGPU(gpuFunc, d_graph, n, tileSize, 0);
+            elapsed = Timer::measureGPU(gpuFunc, d_graph, n, tileSize);
 
             GPUMemory::copyToHost(h_graph, d_graph, n);
             GPUMemory::free(d_graph);
@@ -69,7 +69,7 @@ int executeBenchmark(
             AlgorithmFuncCPU cpuFunc = getCPUAlgorithmFunc(algorithmName);
 
             std::cout << "Running " << algorithmName << "...\n";
-            elapsed = Timer::measureCPU(cpuFunc, h_graph, n, tileSize, 0);
+            elapsed = Timer::measureCPU(cpuFunc, h_graph, n, tileSize);
         }
     } catch (const std::exception& e) {
         if (d_graph != nullptr) {

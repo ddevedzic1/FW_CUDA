@@ -14,7 +14,7 @@ double measureCPU(
     WeightType* graph,
     int n,
     int tileSize,
-    int warmup_runs = 0
+    int warmup_runs = 1
 );
 
 // Measures GPU algorithm execution time using CUDA events, returns time in seconds
