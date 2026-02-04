@@ -148,9 +148,9 @@ static void testNegativeCycle(AlgorithmFuncGPU algorithm, int tileSize, int kapp
 }
 
 static void testLargeGraph(AlgorithmFuncGPU algorithm, AlgorithmFuncCPU reference,
-    int n, int tileSize, int kappa, unsigned int seed) {
-    std::string testName = "Large graph (N=" + std::to_string(n) + ", seed=" + std::to_string(seed) + ")";
-    runTestAgainstReference(algorithm, reference, n, tileSize, kappa, 0.9, seed, testName);
+    int n, int tileSize, int kappa, double density, unsigned int seed) {
+    std::string testName = "Large graph (N=" + std::to_string(n) + ", density=" + std::to_string(density) + ", seed=" + std::to_string(seed) + ")";
+    runTestAgainstReference(algorithm, reference, n, tileSize, kappa, density, seed, testName);
 }
 
 void runTestsGPU(AlgorithmFuncGPU algorithm, AlgorithmFuncCPU reference,
@@ -169,10 +169,15 @@ void runTestsGPU(AlgorithmFuncGPU algorithm, AlgorithmFuncCPU reference,
     testNegativeWeights(algorithm, tileSize, kappa);
     testNegativeCycle(algorithm, tileSize, kappa);
 
-    testLargeGraph(algorithm, reference, 128, tileSize, kappa, 42);
-    testLargeGraph(algorithm, reference, 256, tileSize, kappa, 123);
-    testLargeGraph(algorithm, reference, 512, tileSize, kappa, 456);
-    testLargeGraph(algorithm, reference, 1024, tileSize, kappa, 789);
+    testLargeGraph(algorithm, reference, 128, tileSize, kappa, 0.9, 42);
+    testLargeGraph(algorithm, reference, 256, tileSize, kappa, 0.9, 123);
+    testLargeGraph(algorithm, reference, 512, tileSize, kappa, 0.9, 456);
+    testLargeGraph(algorithm, reference, 1024, tileSize, kappa, 0.9, 789);
+
+    testLargeGraph(algorithm, reference, 128, tileSize, kappa, 0.1, 101);
+    testLargeGraph(algorithm, reference, 256, tileSize, kappa, 0.1, 202);
+    testLargeGraph(algorithm, reference, 512, tileSize, kappa, 0.1, 303);
+    testLargeGraph(algorithm, reference, 1024, tileSize, kappa, 0.1, 404);
 
     std::cout << "========================================\n";
     std::cout << "RESULTS: " << testsPassed << "/" << testsTotal << " passed\n";
