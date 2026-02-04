@@ -155,17 +155,19 @@ void fwTilingGPU(WeightType* d_D, int n, int tileSize, int kappa) {
         fwTilingDiagonalKernel<<<1, blockDim, tileBytes>>>(d_D, n, tile);
         checkKernelErrors();
 
-        dim3 gridRow(numTiles - 1);
-        fwTilingRowKernel<<<gridRow, blockDim, 2 * tileBytes>>>(d_D, n, tile);
-        checkKernelErrors();
+        if (numTiles > 1) {
+            dim3 gridRow(numTiles - 1);
+            fwTilingRowKernel<<<gridRow, blockDim, 2 * tileBytes>>>(d_D, n, tile);
+            checkKernelErrors();
 
-        dim3 gridCol(numTiles - 1);
-        fwTilingColumnKernel<<<gridCol, blockDim, 2 * tileBytes>>>(d_D, n, tile);
-        checkKernelErrors();
+            dim3 gridCol(numTiles - 1);
+            fwTilingColumnKernel<<<gridCol, blockDim, 2 * tileBytes>>>(d_D, n, tile);
+            checkKernelErrors();
 
-        dim3 gridOthers(numTiles - 1, numTiles - 1);
-        fwTilingOthersKernel<<<gridOthers, blockDim, 2 * tileBytes>>>(d_D, n, tile);
-        checkKernelErrors();
+            dim3 gridOthers(numTiles - 1, numTiles - 1);
+            fwTilingOthersKernel<<<gridOthers, blockDim, 2 * tileBytes>>>(d_D, n, tile);
+            checkKernelErrors();
+        }
     }
 
     checkCudaErrors(cudaDeviceSynchronize());
