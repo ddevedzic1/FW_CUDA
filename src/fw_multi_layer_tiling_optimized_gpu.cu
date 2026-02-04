@@ -26,15 +26,15 @@ __global__ void fwMLOptLeadBlockKernel(
     WeightType* sharedRow  = sharedMem +     TILE * TILE;
     WeightType* sharedCol  = sharedMem + 2 * TILE * TILE;
 
-    WeightType currVal = (globalI < n && globalJ < n) ? D[globalI * n + globalJ] : INF;
+    WeightType currVal = (globalI < n && globalJ < n) ? __ldg(&D[globalI * n + globalJ]) : INF;
 
     for (int m = 0; m < l; ++m) {
         int mBase = (kBlockBase + m) * TILE;
 
         sharedRow[ty * TILE + tx] = (globalI < n && mBase + tx < n)
-            ? D[globalI * n + mBase + tx] : INF;
+            ? __ldg(&D[globalI * n + mBase + tx]) : INF;
         sharedCol[ty * TILE + tx] = (mBase + ty < n && globalJ < n)
-            ? D[(mBase + ty) * n + globalJ] : INF;
+            ? __ldg(&D[(mBase + ty) * n + globalJ]) : INF;
 
         __syncthreads();
 
@@ -87,7 +87,7 @@ __global__ void fwMLOptLeadRowKernel(
     WeightType* sharedDDRow = sharedMem + 2 * TILE * TILE;
     WeightType* sharedDDCol = sharedMem + 3 * TILE * TILE;
 
-    WeightType currVal = (globalI < n && globalJ < n) ? D[globalI * n + globalJ] : INF;
+    WeightType currVal = (globalI < n && globalJ < n) ? __ldg(&D[globalI * n + globalJ]) : INF;
 
     int mStart = (colTile >= kBlockBase && colTile < currentK)
         ? (colTile - kBlockBase + 1) : 0;
@@ -96,9 +96,9 @@ __global__ void fwMLOptLeadRowKernel(
         int mBase = (kBlockBase + m) * TILE;
 
         sharedDDRow[ty * TILE + tx] = (globalI < n && mBase + tx < n)
-            ? D[globalI * n + mBase + tx] : INF;
+            ? __ldg(&D[globalI * n + mBase + tx]) : INF;
         sharedDDCol[ty * TILE + tx] = (mBase + ty < n && globalJ < n)
-            ? D[(mBase + ty) * n + globalJ] : INF;
+            ? __ldg(&D[(mBase + ty) * n + globalJ]) : INF;
 
         __syncthreads();
 
@@ -111,7 +111,7 @@ __global__ void fwMLOptLeadRowKernel(
     }
 
     sharedDiag[ty * TILE + tx] = (diagBase + ty < n && diagBase + tx < n)
-        ? D[(diagBase + ty) * n + diagBase + tx] : INF;
+        ? __ldg(&D[(diagBase + ty) * n + diagBase + tx]) : INF;
     sharedCurr[ty * TILE + tx] = currVal;
     __syncthreads();
 
@@ -153,7 +153,7 @@ __global__ void fwMLOptLeadColumnKernel(
     WeightType* sharedDDRow = sharedMem + 2 * TILE * TILE;
     WeightType* sharedDDCol = sharedMem + 3 * TILE * TILE;
 
-    WeightType currVal = (globalI < n && globalJ < n) ? D[globalI * n + globalJ] : INF;
+    WeightType currVal = (globalI < n && globalJ < n) ? __ldg(&D[globalI * n + globalJ]) : INF;
 
     int mStart = (rowTile >= kBlockBase && rowTile < currentK)
         ? (rowTile - kBlockBase + 1) : 0;
@@ -162,9 +162,9 @@ __global__ void fwMLOptLeadColumnKernel(
         int mBase = (kBlockBase + m) * TILE;
 
         sharedDDRow[ty * TILE + tx] = (globalI < n && mBase + tx < n)
-            ? D[globalI * n + mBase + tx] : INF;
+            ? __ldg(&D[globalI * n + mBase + tx]) : INF;
         sharedDDCol[ty * TILE + tx] = (mBase + ty < n && globalJ < n)
-            ? D[(mBase + ty) * n + globalJ] : INF;
+            ? __ldg(&D[(mBase + ty) * n + globalJ]) : INF;
 
         __syncthreads();
 
@@ -177,7 +177,7 @@ __global__ void fwMLOptLeadColumnKernel(
     }
 
     sharedDiag[ty * TILE + tx] = (diagBase + ty < n && diagBase + tx < n)
-        ? D[(diagBase + ty) * n + diagBase + tx] : INF;
+        ? __ldg(&D[(diagBase + ty) * n + diagBase + tx]) : INF;
     sharedCurr[ty * TILE + tx] = currVal;
     __syncthreads();
 
@@ -223,15 +223,15 @@ __global__ void fwMLOptLeadRowReverseKernel(
     WeightType* sharedDDRow = sharedMem;
     WeightType* sharedDDCol = sharedMem + TILE * TILE;
 
-    WeightType currVal = (globalI < n && globalJ < n) ? D[globalI * n + globalJ] : INF;
+    WeightType currVal = (globalI < n && globalJ < n) ? __ldg(&D[globalI * n + globalJ]) : INF;
 
     for (int m = l + 1; m < blocksInStage; ++m) {
         int mBase = (kBlockBase + m) * TILE;
 
         sharedDDRow[ty * TILE + tx] = (globalI < n && mBase + tx < n)
-            ? D[globalI * n + mBase + tx] : INF;
+            ? __ldg(&D[globalI * n + mBase + tx]) : INF;
         sharedDDCol[ty * TILE + tx] = (mBase + ty < n && globalJ < n)
-            ? D[(mBase + ty) * n + globalJ] : INF;
+            ? __ldg(&D[(mBase + ty) * n + globalJ]) : INF;
 
         __syncthreads();
 
@@ -277,15 +277,15 @@ __global__ void fwMLOptLeadColumnReverseKernel(
     WeightType* sharedDDRow = sharedMem;
     WeightType* sharedDDCol = sharedMem + TILE * TILE;
 
-    WeightType currVal = (globalI < n && globalJ < n) ? D[globalI * n + globalJ] : INF;
+    WeightType currVal = (globalI < n && globalJ < n) ? __ldg(&D[globalI * n + globalJ]) : INF;
 
     for (int m = l + 1; m < blocksInStage; ++m) {
         int mBase = (kBlockBase + m) * TILE;
 
         sharedDDRow[ty * TILE + tx] = (globalI < n && mBase + tx < n)
-            ? D[globalI * n + mBase + tx] : INF;
+            ? __ldg(&D[globalI * n + mBase + tx]) : INF;
         sharedDDCol[ty * TILE + tx] = (mBase + ty < n && globalJ < n)
-            ? D[(mBase + ty) * n + globalJ] : INF;
+            ? __ldg(&D[(mBase + ty) * n + globalJ]) : INF;
 
         __syncthreads();
 
@@ -326,15 +326,15 @@ __global__ void fwMLOptRestBlocksKernel(
     WeightType* sharedRow = sharedMem;
     WeightType* sharedCol = sharedMem + TILE * TILE;
 
-    WeightType currVal = (globalI < n && globalJ < n) ? D[globalI * n + globalJ] : INF;
+    WeightType currVal = (globalI < n && globalJ < n) ? __ldg(&D[globalI * n + globalJ]) : INF;
 
     for (int m = 0; m < blocksInStage; ++m) {
         int mBase = (kBlockBase + m) * TILE;
 
         sharedRow[ty * TILE + tx] = (globalI < n && mBase + tx < n)
-            ? D[globalI * n + mBase + tx] : INF;
+            ? __ldg(&D[globalI * n + mBase + tx]) : INF;
         sharedCol[ty * TILE + tx] = (mBase + ty < n && globalJ < n)
-            ? D[(mBase + ty) * n + globalJ] : INF;
+            ? __ldg(&D[(mBase + ty) * n + globalJ]) : INF;
 
         __syncthreads();
 
