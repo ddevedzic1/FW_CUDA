@@ -59,6 +59,7 @@ set(CUDA_SOURCES
     src/gpu_memory.cu
     src/fw_baseline_gpu.cu
     src/fw_tiling_gpu.cu
+    src/fw_multi_layer_tiling_gpu.cu
     src/algorithm_runner.cu
 )
 

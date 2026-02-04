@@ -1,11 +1,13 @@
 #include "cuda_utils.cuh"
 #include "fw_baseline_gpu.cuh"
 #include "fw_tiling_gpu.cuh"
+#include "fw_multi_layer_tiling_gpu.cuh"
 #include <stdexcept>
 
 const std::map<std::string, AlgorithmFuncGPU> GPU_ALGORITHMS = {
     {"baseline_gpu", fwBaselineGPU},
-    {"tiling_gpu", fwTilingGPU}
+    {"tiling_gpu", fwTilingGPU},
+    {"multi_layer_tiling_gpu", fwMultiLayerTilingGPU}
 };
 
 AlgorithmFuncGPU getGPUAlgorithmFunc(const std::string& algorithmName) {
