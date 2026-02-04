@@ -23,6 +23,7 @@ double measureGPU(
     WeightType* d_graph,
     int n,
     int tileSize,
+    int kappa,
     int warmup_runs = 1
 );
 

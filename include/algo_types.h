@@ -6,4 +6,4 @@
 using AlgorithmFuncCPU = void(*)(WeightType* D, int n, int tileSize);
 
 // GPU algorithm function pointer type
-using AlgorithmFuncGPU = void(*)(WeightType* d_D, int n, int tileSize);
+using AlgorithmFuncGPU = void(*)(WeightType* d_D, int n, int tileSize, int kappa);

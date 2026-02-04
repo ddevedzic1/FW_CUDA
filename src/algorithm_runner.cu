@@ -13,6 +13,7 @@ int executeBenchmark(
     const std::string& algorithmName,
     int n,
     int tileSize,
+    int kappa,
     double density,
     unsigned int seed
 ) {
@@ -29,6 +30,7 @@ int executeBenchmark(
     std::cout << "Graph size: " << n << " vertices\n";
     std::cout << "Edge density: " << std::fixed << std::setprecision(1) << (density * 100.0) << "%\n";
     std::cout << "Tile size: " << tileSize << "\n";
+    std::cout << "Kappa: " << kappa << "\n";
     std::cout << "Algorithm type: " << (isGPU ? "GPU" : "CPU") << "\n";
     if (seed == 0) {
         std::cout << "Seed: Random (Non-reproducible)\n";
@@ -59,7 +61,7 @@ int executeBenchmark(
             GPUMemory::copyToDevice(d_graph, h_graph, n);
 
             std::cout << "Running " << algorithmName << "...\n";
-            elapsed = Timer::measureGPU(gpuFunc, d_graph, n, tileSize);
+            elapsed = Timer::measureGPU(gpuFunc, d_graph, n, tileSize, kappa);
 
             GPUMemory::copyToHost(h_graph, d_graph, n);
             GPUMemory::free(d_graph);

@@ -11,6 +11,7 @@ int executeBenchmark(
     const std::string& algorithmName,
     int n,
     int tileSize,
+    int kappa,
     double density,
     unsigned int seed
 );

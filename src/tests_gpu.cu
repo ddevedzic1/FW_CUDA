@@ -39,12 +39,12 @@ static void assertEqual(const std::vector<WeightType>& actual, const std::vector
 
 // Runs GPU algorithm on input and returns result
 static std::vector<WeightType> runGPUAlgorithm(AlgorithmFuncGPU algorithm,
-    const std::vector<WeightType>& input, int n, int tileSize) {
+    const std::vector<WeightType>& input, int n, int tileSize, int kappa) {
 
     WeightType* d_graph = GPUMemory::allocate(n);
     GPUMemory::copyToDevice(d_graph, input.data(), n);
 
-    algorithm(d_graph, n, tileSize);
+    algorithm(d_graph, n, tileSize, kappa);
 
     std::vector<WeightType> result(input.size());
     GPUMemory::copyToHost(result.data(), d_graph, n);
@@ -54,40 +54,40 @@ static std::vector<WeightType> runGPUAlgorithm(AlgorithmFuncGPU algorithm,
 }
 
 static void runTestGPU(AlgorithmFuncGPU algorithm, const std::vector<WeightType>& input,
-    const std::vector<WeightType>& expected, int n, int tileSize,
+    const std::vector<WeightType>& expected, int n, int tileSize, int kappa,
     const std::string& testName) {
-    std::vector<WeightType> result = runGPUAlgorithm(algorithm, input, n, tileSize);
+    std::vector<WeightType> result = runGPUAlgorithm(algorithm, input, n, tileSize, kappa);
     assertEqual(result, expected, testName);
 }
 
 static void runTestAgainstReference(AlgorithmFuncGPU algorithm, AlgorithmFuncCPU reference,
-    int n, int tileSize, double density, unsigned int seed,
+    int n, int tileSize, int kappa, double density, unsigned int seed,
     const std::string& testName) {
     std::vector<WeightType> input = generateGraph1D(n, density, seed);
 
     std::vector<WeightType> expected = input;
     reference(expected.data(), n, 0);
 
-    std::vector<WeightType> result = runGPUAlgorithm(algorithm, input, n, tileSize);
+    std::vector<WeightType> result = runGPUAlgorithm(algorithm, input, n, tileSize, kappa);
 
     assertEqual(result, expected, testName);
 }
 
-static void testSingleNode(AlgorithmFuncGPU algorithm, int tileSize) {
+static void testSingleNode(AlgorithmFuncGPU algorithm, int tileSize, int kappa) {
     std::vector<WeightType> input = { 0 };
     std::vector<WeightType> expected = { 0 };
-    runTestGPU(algorithm, input, expected, 1, tileSize, "Single node (1x1)");
+    runTestGPU(algorithm, input, expected, 1, tileSize, kappa, "Single node (1x1)");
 }
 
-static void testNoEdges(AlgorithmFuncGPU algorithm, int tileSize) {
+static void testNoEdges(AlgorithmFuncGPU algorithm, int tileSize, int kappa) {
     std::vector<WeightType> input = {
         0, INF,
         INF, 0
     };
-    runTestGPU(algorithm, input, input, 2, tileSize, "No edges (2x2)");
+    runTestGPU(algorithm, input, input, 2, tileSize, kappa, "No edges (2x2)");
 }
 
-static void testSimplePath(AlgorithmFuncGPU algorithm, int tileSize) {
+static void testSimplePath(AlgorithmFuncGPU algorithm, int tileSize, int kappa) {
     std::vector<WeightType> input = {
         0, 1, INF, 100,
         INF, 0, 1, INF,
@@ -100,20 +100,20 @@ static void testSimplePath(AlgorithmFuncGPU algorithm, int tileSize) {
         INF, INF, 0, 1,
         INF, INF, INF, 0
     };
-    runTestGPU(algorithm, input, expected, 4, tileSize, "Simple path optimization (4x4)");
+    runTestGPU(algorithm, input, expected, 4, tileSize, kappa, "Simple path optimization (4x4)");
 }
 
-static void testDisconnectedComponents(AlgorithmFuncGPU algorithm, int tileSize) {
+static void testDisconnectedComponents(AlgorithmFuncGPU algorithm, int tileSize, int kappa) {
     std::vector<WeightType> input = {
         0, 1, INF, INF,
         1, 0, INF, INF,
         INF, INF, 0, 2,
         INF, INF, 2, 0
     };
-    runTestGPU(algorithm, input, input, 4, tileSize, "Disconnected components (4x4)");
+    runTestGPU(algorithm, input, input, 4, tileSize, kappa, "Disconnected components (4x4)");
 }
 
-static void testNegativeWeights(AlgorithmFuncGPU algorithm, int tileSize) {
+static void testNegativeWeights(AlgorithmFuncGPU algorithm, int tileSize, int kappa) {
     std::vector<WeightType> input = {
         0, 5, 10,
         0, 0, -1,
@@ -124,10 +124,10 @@ static void testNegativeWeights(AlgorithmFuncGPU algorithm, int tileSize) {
         0, 0, -1,
         INF, INF, 0
     };
-    runTestGPU(algorithm, input, expected, 3, tileSize, "Negative weights (3x3)");
+    runTestGPU(algorithm, input, expected, 3, tileSize, kappa, "Negative weights (3x3)");
 }
 
-static void testNegativeCycle(AlgorithmFuncGPU algorithm, int tileSize) {
+static void testNegativeCycle(AlgorithmFuncGPU algorithm, int tileSize, int kappa) {
     testsTotal++;
 
     std::vector<WeightType> input = {
@@ -136,7 +136,7 @@ static void testNegativeCycle(AlgorithmFuncGPU algorithm, int tileSize) {
         INF, -3, 0
     };
 
-    std::vector<WeightType> result = runGPUAlgorithm(algorithm, input, 3, tileSize);
+    std::vector<WeightType> result = runGPUAlgorithm(algorithm, input, 3, tileSize, kappa);
 
     if (hasNegativeCycle(result.data(), 3)) {
         std::cout << "[ PASSED ] Negative cycle detection (3x3)\n";
@@ -148,31 +148,31 @@ static void testNegativeCycle(AlgorithmFuncGPU algorithm, int tileSize) {
 }
 
 static void testLargeGraph(AlgorithmFuncGPU algorithm, AlgorithmFuncCPU reference,
-    int n, int tileSize, unsigned int seed) {
+    int n, int tileSize, int kappa, unsigned int seed) {
     std::string testName = "Large graph (N=" + std::to_string(n) + ", seed=" + std::to_string(seed) + ")";
-    runTestAgainstReference(algorithm, reference, n, tileSize, 0.9, seed, testName);
+    runTestAgainstReference(algorithm, reference, n, tileSize, kappa, 0.9, seed, testName);
 }
 
 void runTestsGPU(AlgorithmFuncGPU algorithm, AlgorithmFuncCPU reference,
-    const std::string& name, int tileSize) {
+    const std::string& name, int tileSize, int kappa) {
     testsPassed = 0;
     testsTotal = 0;
 
     std::cout << "\n========================================\n";
-    std::cout << "TESTING (GPU): " << name << " (tileSize=" << tileSize << ")\n";
+    std::cout << "TESTING (GPU): " << name << " (tileSize=" << tileSize << ", kappa=" << kappa << ")\n";
     std::cout << "========================================\n";
 
-    testSingleNode(algorithm, tileSize);
-    testNoEdges(algorithm, tileSize);
-    testSimplePath(algorithm, tileSize);
-    testDisconnectedComponents(algorithm, tileSize);
-    testNegativeWeights(algorithm, tileSize);
-    testNegativeCycle(algorithm, tileSize);
+    testSingleNode(algorithm, tileSize, kappa);
+    testNoEdges(algorithm, tileSize, kappa);
+    testSimplePath(algorithm, tileSize, kappa);
+    testDisconnectedComponents(algorithm, tileSize, kappa);
+    testNegativeWeights(algorithm, tileSize, kappa);
+    testNegativeCycle(algorithm, tileSize, kappa);
 
-    testLargeGraph(algorithm, reference, 128, tileSize, 42);
-    testLargeGraph(algorithm, reference, 256, tileSize, 123);
-    testLargeGraph(algorithm, reference, 512, tileSize, 456);
-    testLargeGraph(algorithm, reference, 1024, tileSize, 789);
+    testLargeGraph(algorithm, reference, 128, tileSize, kappa, 42);
+    testLargeGraph(algorithm, reference, 256, tileSize, kappa, 123);
+    testLargeGraph(algorithm, reference, 512, tileSize, kappa, 456);
+    testLargeGraph(algorithm, reference, 1024, tileSize, kappa, 789);
 
     std::cout << "========================================\n";
     std::cout << "RESULTS: " << testsPassed << "/" << testsTotal << " passed\n";

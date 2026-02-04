@@ -5,7 +5,7 @@
 #include <stdexcept>
 
 void printUsage(const char* programName) {
-    std::cerr << "Usage: " << programName << " <algorithm_name> <n_size> <density> [seed] [tile_size]\n";
+    std::cerr << "Usage: " << programName << " <algorithm_name> <n_size> <density> [seed] [tile_size] [kappa]\n";
     std::cerr << "\n";
     std::cerr << "Arguments:\n";
     std::cerr << "  algorithm_name  Name of the algorithm to run\n";
@@ -13,14 +13,16 @@ void printUsage(const char* programName) {
     std::cerr << "  density         Edge density (0.0 to 1.0)\n";
     std::cerr << "  seed            Random seed (optional, 0 for random)\n";
     std::cerr << "  tile_size       Tile size for tiling/CUDA (optional)\n";
+    std::cerr << "  kappa           Number of tile-layers to group (optional, used by multi_layer_tiling_gpu)\n";
     std::cerr << "\n";
     std::cerr << "Examples:\n";
     std::cerr << "  " << programName << " baseline_cpu 1024 0.8\n";
     std::cerr << "  " << programName << " baseline_gpu 2048 0.9 42 16\n";
+    std::cerr << "  " << programName << " multi_layer_tiling_gpu 4096 0.9 42 32 4\n";
 }
 
 int main(int argc, char* argv[]) {
-    if (argc < 4 || argc > 6) {
+    if (argc < 4 || argc > 7) {
         printUsage(argv[0]);
         return 1;
     }
@@ -30,6 +32,7 @@ int main(int argc, char* argv[]) {
     double density = 0.0;
     unsigned int seed = 0;
     int tileSize = 0;
+    int kappa = 0;
 
     try {
         n = std::stoi(argv[2]);
@@ -62,7 +65,7 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    if (argc == 6) {
+    if (argc >= 6) {
         try {
             tileSize = std::stoi(argv[5]);
             if (tileSize < 0 || tileSize > n) {
@@ -75,8 +78,21 @@ int main(int argc, char* argv[]) {
         }
     }
 
+    if (argc == 7) {
+        try {
+            kappa = std::stoi(argv[6]);
+            if (kappa < 0) {
+                std::cerr << "ERROR: Invalid KAPPA (" << kappa << "). Must be non-negative.\n";
+                return 1;
+            }
+        } catch (const std::exception&) {
+            std::cerr << "ERROR: Invalid KAPPA provided (" << argv[6] << "). Must be an integer.\n";
+            return 1;
+        }
+    }
+
     try {
-        return AlgorithmRunner::executeBenchmark(algorithmName, n, tileSize, density, seed);
+        return AlgorithmRunner::executeBenchmark(algorithmName, n, tileSize, kappa, density, seed);
     } catch (const std::exception& e) {
         std::cerr << "RUNTIME ERROR: " << e.what() << "\n";
         return 1;

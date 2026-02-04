@@ -139,7 +139,9 @@ __global__ void fwTilingOthersKernel(
     }
 }
 
-void fwTilingGPU(WeightType* d_D, int n, int tileSize) {
+void fwTilingGPU(WeightType* d_D, int n, int tileSize, int kappa) {
+    (void)kappa;
+
     if (tileSize <= 0 || tileSize > 32) {
         tileSize = DEFAULT_TILE_SIZE;
     }

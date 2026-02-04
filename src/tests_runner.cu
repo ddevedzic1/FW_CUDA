@@ -9,7 +9,7 @@
 
 namespace TestsRunner {
 
-int executeTests(const std::string& algorithmName, int tileSize) {
+int executeTests(const std::string& algorithmName, int tileSize, int kappa) {
     AlgorithmFuncCPU reference = fwBaselineCPU;
 
     if (isGPUAlgorithm(algorithmName)) {
@@ -24,7 +24,7 @@ int executeTests(const std::string& algorithmName, int tileSize) {
         std::cout << "Warming up GPU...\n";
         Timer::warmupGPU();
 
-        runTestsGPU(algorithm, reference, algorithmName, tileSize);
+        runTestsGPU(algorithm, reference, algorithmName, tileSize, kappa);
     } else {
         AlgorithmFuncCPU algorithm = nullptr;
         try {

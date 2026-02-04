@@ -5,6 +5,6 @@
 namespace TestsRunner {
 
 // Executes tests for a given algorithm (CPU or GPU based on algorithm name)
-int executeTests(const std::string& algorithmName, int tileSize);
+int executeTests(const std::string& algorithmName, int tileSize, int kappa);
 
 } // namespace TestsRunner

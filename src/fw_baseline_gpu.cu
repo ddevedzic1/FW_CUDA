@@ -13,8 +13,9 @@ __global__ void fwBaselineKernel(WeightType* __restrict__ D, int n, int k) {
     }
 }
 
-void fwBaselineGPU(WeightType* d_D, int n, int tileSize) {
+void fwBaselineGPU(WeightType* d_D, int n, int tileSize, int kappa) {
     (void)tileSize;
+    (void)kappa;
 
     dim3 blockDim(BLOCK_SIZE, BLOCK_SIZE);
     dim3 gridDim(

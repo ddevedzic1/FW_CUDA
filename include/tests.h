@@ -9,4 +9,4 @@ void runTestsCPU(AlgorithmFuncCPU algorithm, AlgorithmFuncCPU reference,
 
 // Runs all tests for a given GPU algorithm against a CPU reference implementation
 void runTestsGPU(AlgorithmFuncGPU algorithm, AlgorithmFuncCPU reference,
-    const std::string& name, int tileSize);
+    const std::string& name, int tileSize, int kappa);

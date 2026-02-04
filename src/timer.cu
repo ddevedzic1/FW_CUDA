@@ -37,10 +37,11 @@ double measureGPU(
     WeightType* d_graph,
     int n,
     int tileSize,
+    int kappa,
     int warmup_runs
 ) {
     for (int i = 0; i < warmup_runs; ++i) {
-        func(d_graph, n, tileSize);
+        func(d_graph, n, tileSize, kappa);
         checkCudaErrors(cudaDeviceSynchronize());
     }
 
@@ -49,7 +50,7 @@ double measureGPU(
     checkCudaErrors(cudaEventCreate(&stop));
 
     checkCudaErrors(cudaEventRecord(start));
-    func(d_graph, n, tileSize);
+    func(d_graph, n, tileSize, kappa);
     checkCudaErrors(cudaEventRecord(stop));
     checkCudaErrors(cudaEventSynchronize(stop));
 
