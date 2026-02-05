@@ -28,41 +28,57 @@ __global__ void fwMLOptLeadBlockKernel(
     int gJ0 = diagBase + c0;
     int gJ1 = diagBase + c1;
 
-    WeightType* sharedDiag = sharedMem;
-    WeightType* sharedRow  = sharedMem +     TILE * TILE;
-    WeightType* sharedCol  = sharedMem + 2 * TILE * TILE;
+    WeightType* sharedDiag  = sharedMem;
+    WeightType* sharedRow[2] = { sharedMem +     TILE * TILE, sharedMem + 2 * TILE * TILE };
+    WeightType* sharedCol[2] = { sharedMem + 3 * TILE * TILE, sharedMem + 4 * TILE * TILE };
 
     WeightType c00 = (gI0 < n && gJ0 < n) ? __ldg(&D[gI0 * n + gJ0]) : INF;
     WeightType c01 = (gI0 < n && gJ1 < n) ? __ldg(&D[gI0 * n + gJ1]) : INF;
     WeightType c10 = (gI1 < n && gJ0 < n) ? __ldg(&D[gI1 * n + gJ0]) : INF;
     WeightType c11 = (gI1 < n && gJ1 < n) ? __ldg(&D[gI1 * n + gJ1]) : INF;
 
-    for (int m = 0; m < l; ++m) {
-        int mBase = (kBlockBase + m) * TILE;
-
-        sharedRow[r0 * TILE + c0] = (gI0 < n && mBase + c0 < n) ? __ldg(&D[gI0 * n + mBase + c0]) : INF;
-        sharedRow[r0 * TILE + c1] = (gI0 < n && mBase + c1 < n) ? __ldg(&D[gI0 * n + mBase + c1]) : INF;
-        sharedRow[r1 * TILE + c0] = (gI1 < n && mBase + c0 < n) ? __ldg(&D[gI1 * n + mBase + c0]) : INF;
-        sharedRow[r1 * TILE + c1] = (gI1 < n && mBase + c1 < n) ? __ldg(&D[gI1 * n + mBase + c1]) : INF;
-
-        sharedCol[r0 * TILE + c0] = (mBase + r0 < n && gJ0 < n) ? __ldg(&D[(mBase + r0) * n + gJ0]) : INF;
-        sharedCol[r0 * TILE + c1] = (mBase + r0 < n && gJ1 < n) ? __ldg(&D[(mBase + r0) * n + gJ1]) : INF;
-        sharedCol[r1 * TILE + c0] = (mBase + r1 < n && gJ0 < n) ? __ldg(&D[(mBase + r1) * n + gJ0]) : INF;
-        sharedCol[r1 * TILE + c1] = (mBase + r1 < n && gJ1 < n) ? __ldg(&D[(mBase + r1) * n + gJ1]) : INF;
-
+    int cur = 0;
+    if (l > 0) {
+        int mBase = kBlockBase * TILE;
+        sharedRow[0][r0 * TILE + c0] = (gI0 < n && mBase + c0 < n) ? __ldg(&D[gI0 * n + mBase + c0]) : INF;
+        sharedRow[0][r0 * TILE + c1] = (gI0 < n && mBase + c1 < n) ? __ldg(&D[gI0 * n + mBase + c1]) : INF;
+        sharedRow[0][r1 * TILE + c0] = (gI1 < n && mBase + c0 < n) ? __ldg(&D[gI1 * n + mBase + c0]) : INF;
+        sharedRow[0][r1 * TILE + c1] = (gI1 < n && mBase + c1 < n) ? __ldg(&D[gI1 * n + mBase + c1]) : INF;
+        sharedCol[0][r0 * TILE + c0] = (mBase + r0 < n && gJ0 < n) ? __ldg(&D[(mBase + r0) * n + gJ0]) : INF;
+        sharedCol[0][r0 * TILE + c1] = (mBase + r0 < n && gJ1 < n) ? __ldg(&D[(mBase + r0) * n + gJ1]) : INF;
+        sharedCol[0][r1 * TILE + c0] = (mBase + r1 < n && gJ0 < n) ? __ldg(&D[(mBase + r1) * n + gJ0]) : INF;
+        sharedCol[0][r1 * TILE + c1] = (mBase + r1 < n && gJ1 < n) ? __ldg(&D[(mBase + r1) * n + gJ1]) : INF;
         __syncthreads();
+    }
+
+    for (int m = 0; m < l; ++m) {
+        int nxt = 1 - cur;
+        if (m + 1 < l) {
+            int mBase = (kBlockBase + m + 1) * TILE;
+            sharedRow[nxt][r0 * TILE + c0] = (gI0 < n && mBase + c0 < n) ? __ldg(&D[gI0 * n + mBase + c0]) : INF;
+            sharedRow[nxt][r0 * TILE + c1] = (gI0 < n && mBase + c1 < n) ? __ldg(&D[gI0 * n + mBase + c1]) : INF;
+            sharedRow[nxt][r1 * TILE + c0] = (gI1 < n && mBase + c0 < n) ? __ldg(&D[gI1 * n + mBase + c0]) : INF;
+            sharedRow[nxt][r1 * TILE + c1] = (gI1 < n && mBase + c1 < n) ? __ldg(&D[gI1 * n + mBase + c1]) : INF;
+            sharedCol[nxt][r0 * TILE + c0] = (mBase + r0 < n && gJ0 < n) ? __ldg(&D[(mBase + r0) * n + gJ0]) : INF;
+            sharedCol[nxt][r0 * TILE + c1] = (mBase + r0 < n && gJ1 < n) ? __ldg(&D[(mBase + r0) * n + gJ1]) : INF;
+            sharedCol[nxt][r1 * TILE + c0] = (mBase + r1 < n && gJ0 < n) ? __ldg(&D[(mBase + r1) * n + gJ0]) : INF;
+            sharedCol[nxt][r1 * TILE + c1] = (mBase + r1 < n && gJ1 < n) ? __ldg(&D[(mBase + r1) * n + gJ1]) : INF;
+        }
 
         #pragma unroll
         for (int k = 0; k < TILE; ++k) {
-            WeightType row0 = sharedRow[r0 * TILE + k];
-            WeightType row1 = sharedRow[r1 * TILE + k];
-            WeightType col0 = sharedCol[k * TILE + c0];
-            WeightType col1 = sharedCol[k * TILE + c1];
+            WeightType row0 = sharedRow[cur][r0 * TILE + k];
+            WeightType row1 = sharedRow[cur][r1 * TILE + k];
+            WeightType col0 = sharedCol[cur][k * TILE + c0];
+            WeightType col1 = sharedCol[cur][k * TILE + c1];
             c00 = min(c00, row0 + col0);
             c01 = min(c01, row0 + col1);
             c10 = min(c10, row1 + col0);
             c11 = min(c11, row1 + col1);
         }
+
+        __syncthreads();
+        cur = nxt;
     }
 
     sharedDiag[r0 * TILE + c0] = c00;
@@ -119,10 +135,10 @@ __global__ void fwMLOptLeadRowKernel(
     int gJ0 = colBase  + c0;
     int gJ1 = colBase  + c1;
 
-    WeightType* sharedDiag  = sharedMem;
-    WeightType* sharedCurr  = sharedMem +     TILE * TILE;
-    WeightType* sharedDDRow = sharedMem + 2 * TILE * TILE;
-    WeightType* sharedDDCol = sharedMem + 3 * TILE * TILE;
+    WeightType* sharedDiag     = sharedMem;
+    WeightType* sharedCurr     = sharedMem +     TILE * TILE;
+    WeightType* sharedDDRow[2] = { sharedMem + 2 * TILE * TILE, sharedMem + 3 * TILE * TILE };
+    WeightType* sharedDDCol[2] = { sharedMem + 4 * TILE * TILE, sharedMem + 5 * TILE * TILE };
 
     WeightType c00 = (gI0 < n && gJ0 < n) ? __ldg(&D[gI0 * n + gJ0]) : INF;
     WeightType c01 = (gI0 < n && gJ1 < n) ? __ldg(&D[gI0 * n + gJ1]) : INF;
@@ -132,32 +148,48 @@ __global__ void fwMLOptLeadRowKernel(
     int mStart = (colTile >= kBlockBase && colTile < currentK)
         ? (colTile - kBlockBase + 1) : 0;
 
-    for (int m = mStart; m < l; ++m) {
-        int mBase = (kBlockBase + m) * TILE;
-
-        sharedDDRow[r0 * TILE + c0] = (gI0 < n && mBase + c0 < n) ? __ldg(&D[gI0 * n + mBase + c0]) : INF;
-        sharedDDRow[r0 * TILE + c1] = (gI0 < n && mBase + c1 < n) ? __ldg(&D[gI0 * n + mBase + c1]) : INF;
-        sharedDDRow[r1 * TILE + c0] = (gI1 < n && mBase + c0 < n) ? __ldg(&D[gI1 * n + mBase + c0]) : INF;
-        sharedDDRow[r1 * TILE + c1] = (gI1 < n && mBase + c1 < n) ? __ldg(&D[gI1 * n + mBase + c1]) : INF;
-
-        sharedDDCol[r0 * TILE + c0] = (mBase + r0 < n && gJ0 < n) ? __ldg(&D[(mBase + r0) * n + gJ0]) : INF;
-        sharedDDCol[r0 * TILE + c1] = (mBase + r0 < n && gJ1 < n) ? __ldg(&D[(mBase + r0) * n + gJ1]) : INF;
-        sharedDDCol[r1 * TILE + c0] = (mBase + r1 < n && gJ0 < n) ? __ldg(&D[(mBase + r1) * n + gJ0]) : INF;
-        sharedDDCol[r1 * TILE + c1] = (mBase + r1 < n && gJ1 < n) ? __ldg(&D[(mBase + r1) * n + gJ1]) : INF;
-
+    int cur = 0;
+    if (mStart < l) {
+        int mBase = (kBlockBase + mStart) * TILE;
+        sharedDDRow[0][r0 * TILE + c0] = (gI0 < n && mBase + c0 < n) ? __ldg(&D[gI0 * n + mBase + c0]) : INF;
+        sharedDDRow[0][r0 * TILE + c1] = (gI0 < n && mBase + c1 < n) ? __ldg(&D[gI0 * n + mBase + c1]) : INF;
+        sharedDDRow[0][r1 * TILE + c0] = (gI1 < n && mBase + c0 < n) ? __ldg(&D[gI1 * n + mBase + c0]) : INF;
+        sharedDDRow[0][r1 * TILE + c1] = (gI1 < n && mBase + c1 < n) ? __ldg(&D[gI1 * n + mBase + c1]) : INF;
+        sharedDDCol[0][r0 * TILE + c0] = (mBase + r0 < n && gJ0 < n) ? __ldg(&D[(mBase + r0) * n + gJ0]) : INF;
+        sharedDDCol[0][r0 * TILE + c1] = (mBase + r0 < n && gJ1 < n) ? __ldg(&D[(mBase + r0) * n + gJ1]) : INF;
+        sharedDDCol[0][r1 * TILE + c0] = (mBase + r1 < n && gJ0 < n) ? __ldg(&D[(mBase + r1) * n + gJ0]) : INF;
+        sharedDDCol[0][r1 * TILE + c1] = (mBase + r1 < n && gJ1 < n) ? __ldg(&D[(mBase + r1) * n + gJ1]) : INF;
         __syncthreads();
+    }
+
+    for (int m = mStart; m < l; ++m) {
+        int nxt = 1 - cur;
+        if (m + 1 < l) {
+            int mBase = (kBlockBase + m + 1) * TILE;
+            sharedDDRow[nxt][r0 * TILE + c0] = (gI0 < n && mBase + c0 < n) ? __ldg(&D[gI0 * n + mBase + c0]) : INF;
+            sharedDDRow[nxt][r0 * TILE + c1] = (gI0 < n && mBase + c1 < n) ? __ldg(&D[gI0 * n + mBase + c1]) : INF;
+            sharedDDRow[nxt][r1 * TILE + c0] = (gI1 < n && mBase + c0 < n) ? __ldg(&D[gI1 * n + mBase + c0]) : INF;
+            sharedDDRow[nxt][r1 * TILE + c1] = (gI1 < n && mBase + c1 < n) ? __ldg(&D[gI1 * n + mBase + c1]) : INF;
+            sharedDDCol[nxt][r0 * TILE + c0] = (mBase + r0 < n && gJ0 < n) ? __ldg(&D[(mBase + r0) * n + gJ0]) : INF;
+            sharedDDCol[nxt][r0 * TILE + c1] = (mBase + r0 < n && gJ1 < n) ? __ldg(&D[(mBase + r0) * n + gJ1]) : INF;
+            sharedDDCol[nxt][r1 * TILE + c0] = (mBase + r1 < n && gJ0 < n) ? __ldg(&D[(mBase + r1) * n + gJ0]) : INF;
+            sharedDDCol[nxt][r1 * TILE + c1] = (mBase + r1 < n && gJ1 < n) ? __ldg(&D[(mBase + r1) * n + gJ1]) : INF;
+        }
 
         #pragma unroll
         for (int k = 0; k < TILE; ++k) {
-            WeightType row0 = sharedDDRow[r0 * TILE + k];
-            WeightType row1 = sharedDDRow[r1 * TILE + k];
-            WeightType col0 = sharedDDCol[k * TILE + c0];
-            WeightType col1 = sharedDDCol[k * TILE + c1];
+            WeightType row0 = sharedDDRow[cur][r0 * TILE + k];
+            WeightType row1 = sharedDDRow[cur][r1 * TILE + k];
+            WeightType col0 = sharedDDCol[cur][k * TILE + c0];
+            WeightType col1 = sharedDDCol[cur][k * TILE + c1];
             c00 = min(c00, row0 + col0);
             c01 = min(c01, row0 + col1);
             c10 = min(c10, row1 + col0);
             c11 = min(c11, row1 + col1);
         }
+
+        __syncthreads();
+        cur = nxt;
     }
 
     sharedDiag[r0 * TILE + c0] = (diagBase + r0 < n && diagBase + c0 < n) ? __ldg(&D[(diagBase + r0) * n + diagBase + c0]) : INF;
@@ -216,10 +248,10 @@ __global__ void fwMLOptLeadColumnKernel(
     int gJ0 = diagBase + c0;
     int gJ1 = diagBase + c1;
 
-    WeightType* sharedDiag  = sharedMem;
-    WeightType* sharedCurr  = sharedMem +     TILE * TILE;
-    WeightType* sharedDDRow = sharedMem + 2 * TILE * TILE;
-    WeightType* sharedDDCol = sharedMem + 3 * TILE * TILE;
+    WeightType* sharedDiag     = sharedMem;
+    WeightType* sharedCurr     = sharedMem +     TILE * TILE;
+    WeightType* sharedDDRow[2] = { sharedMem + 2 * TILE * TILE, sharedMem + 3 * TILE * TILE };
+    WeightType* sharedDDCol[2] = { sharedMem + 4 * TILE * TILE, sharedMem + 5 * TILE * TILE };
 
     WeightType c00 = (gI0 < n && gJ0 < n) ? __ldg(&D[gI0 * n + gJ0]) : INF;
     WeightType c01 = (gI0 < n && gJ1 < n) ? __ldg(&D[gI0 * n + gJ1]) : INF;
@@ -229,32 +261,48 @@ __global__ void fwMLOptLeadColumnKernel(
     int mStart = (rowTile >= kBlockBase && rowTile < currentK)
         ? (rowTile - kBlockBase + 1) : 0;
 
-    for (int m = mStart; m < l; ++m) {
-        int mBase = (kBlockBase + m) * TILE;
-
-        sharedDDRow[r0 * TILE + c0] = (gI0 < n && mBase + c0 < n) ? __ldg(&D[gI0 * n + mBase + c0]) : INF;
-        sharedDDRow[r0 * TILE + c1] = (gI0 < n && mBase + c1 < n) ? __ldg(&D[gI0 * n + mBase + c1]) : INF;
-        sharedDDRow[r1 * TILE + c0] = (gI1 < n && mBase + c0 < n) ? __ldg(&D[gI1 * n + mBase + c0]) : INF;
-        sharedDDRow[r1 * TILE + c1] = (gI1 < n && mBase + c1 < n) ? __ldg(&D[gI1 * n + mBase + c1]) : INF;
-
-        sharedDDCol[r0 * TILE + c0] = (mBase + r0 < n && gJ0 < n) ? __ldg(&D[(mBase + r0) * n + gJ0]) : INF;
-        sharedDDCol[r0 * TILE + c1] = (mBase + r0 < n && gJ1 < n) ? __ldg(&D[(mBase + r0) * n + gJ1]) : INF;
-        sharedDDCol[r1 * TILE + c0] = (mBase + r1 < n && gJ0 < n) ? __ldg(&D[(mBase + r1) * n + gJ0]) : INF;
-        sharedDDCol[r1 * TILE + c1] = (mBase + r1 < n && gJ1 < n) ? __ldg(&D[(mBase + r1) * n + gJ1]) : INF;
-
+    int cur = 0;
+    if (mStart < l) {
+        int mBase = (kBlockBase + mStart) * TILE;
+        sharedDDRow[0][r0 * TILE + c0] = (gI0 < n && mBase + c0 < n) ? __ldg(&D[gI0 * n + mBase + c0]) : INF;
+        sharedDDRow[0][r0 * TILE + c1] = (gI0 < n && mBase + c1 < n) ? __ldg(&D[gI0 * n + mBase + c1]) : INF;
+        sharedDDRow[0][r1 * TILE + c0] = (gI1 < n && mBase + c0 < n) ? __ldg(&D[gI1 * n + mBase + c0]) : INF;
+        sharedDDRow[0][r1 * TILE + c1] = (gI1 < n && mBase + c1 < n) ? __ldg(&D[gI1 * n + mBase + c1]) : INF;
+        sharedDDCol[0][r0 * TILE + c0] = (mBase + r0 < n && gJ0 < n) ? __ldg(&D[(mBase + r0) * n + gJ0]) : INF;
+        sharedDDCol[0][r0 * TILE + c1] = (mBase + r0 < n && gJ1 < n) ? __ldg(&D[(mBase + r0) * n + gJ1]) : INF;
+        sharedDDCol[0][r1 * TILE + c0] = (mBase + r1 < n && gJ0 < n) ? __ldg(&D[(mBase + r1) * n + gJ0]) : INF;
+        sharedDDCol[0][r1 * TILE + c1] = (mBase + r1 < n && gJ1 < n) ? __ldg(&D[(mBase + r1) * n + gJ1]) : INF;
         __syncthreads();
+    }
+
+    for (int m = mStart; m < l; ++m) {
+        int nxt = 1 - cur;
+        if (m + 1 < l) {
+            int mBase = (kBlockBase + m + 1) * TILE;
+            sharedDDRow[nxt][r0 * TILE + c0] = (gI0 < n && mBase + c0 < n) ? __ldg(&D[gI0 * n + mBase + c0]) : INF;
+            sharedDDRow[nxt][r0 * TILE + c1] = (gI0 < n && mBase + c1 < n) ? __ldg(&D[gI0 * n + mBase + c1]) : INF;
+            sharedDDRow[nxt][r1 * TILE + c0] = (gI1 < n && mBase + c0 < n) ? __ldg(&D[gI1 * n + mBase + c0]) : INF;
+            sharedDDRow[nxt][r1 * TILE + c1] = (gI1 < n && mBase + c1 < n) ? __ldg(&D[gI1 * n + mBase + c1]) : INF;
+            sharedDDCol[nxt][r0 * TILE + c0] = (mBase + r0 < n && gJ0 < n) ? __ldg(&D[(mBase + r0) * n + gJ0]) : INF;
+            sharedDDCol[nxt][r0 * TILE + c1] = (mBase + r0 < n && gJ1 < n) ? __ldg(&D[(mBase + r0) * n + gJ1]) : INF;
+            sharedDDCol[nxt][r1 * TILE + c0] = (mBase + r1 < n && gJ0 < n) ? __ldg(&D[(mBase + r1) * n + gJ0]) : INF;
+            sharedDDCol[nxt][r1 * TILE + c1] = (mBase + r1 < n && gJ1 < n) ? __ldg(&D[(mBase + r1) * n + gJ1]) : INF;
+        }
 
         #pragma unroll
         for (int k = 0; k < TILE; ++k) {
-            WeightType row0 = sharedDDRow[r0 * TILE + k];
-            WeightType row1 = sharedDDRow[r1 * TILE + k];
-            WeightType col0 = sharedDDCol[k * TILE + c0];
-            WeightType col1 = sharedDDCol[k * TILE + c1];
+            WeightType row0 = sharedDDRow[cur][r0 * TILE + k];
+            WeightType row1 = sharedDDRow[cur][r1 * TILE + k];
+            WeightType col0 = sharedDDCol[cur][k * TILE + c0];
+            WeightType col1 = sharedDDCol[cur][k * TILE + c1];
             c00 = min(c00, row0 + col0);
             c01 = min(c01, row0 + col1);
             c10 = min(c10, row1 + col0);
             c11 = min(c11, row1 + col1);
         }
+
+        __syncthreads();
+        cur = nxt;
     }
 
     sharedDiag[r0 * TILE + c0] = (diagBase + r0 < n && diagBase + c0 < n) ? __ldg(&D[(diagBase + r0) * n + diagBase + c0]) : INF;
@@ -319,40 +367,56 @@ __global__ void fwMLOptLeadRowReverseKernel(
     int gJ0 = colBase  + c0;
     int gJ1 = colBase  + c1;
 
-    WeightType* sharedDDRow = sharedMem;
-    WeightType* sharedDDCol = sharedMem + TILE * TILE;
+    WeightType* sharedDDRow[2] = { sharedMem, sharedMem + TILE * TILE };
+    WeightType* sharedDDCol[2] = { sharedMem + 2 * TILE * TILE, sharedMem + 3 * TILE * TILE };
 
     WeightType c00 = (gI0 < n && gJ0 < n) ? __ldg(&D[gI0 * n + gJ0]) : INF;
     WeightType c01 = (gI0 < n && gJ1 < n) ? __ldg(&D[gI0 * n + gJ1]) : INF;
     WeightType c10 = (gI1 < n && gJ0 < n) ? __ldg(&D[gI1 * n + gJ0]) : INF;
     WeightType c11 = (gI1 < n && gJ1 < n) ? __ldg(&D[gI1 * n + gJ1]) : INF;
 
-    for (int m = l + 1; m < blocksInStage; ++m) {
-        int mBase = (kBlockBase + m) * TILE;
-
-        sharedDDRow[r0 * TILE + c0] = (gI0 < n && mBase + c0 < n) ? __ldg(&D[gI0 * n + mBase + c0]) : INF;
-        sharedDDRow[r0 * TILE + c1] = (gI0 < n && mBase + c1 < n) ? __ldg(&D[gI0 * n + mBase + c1]) : INF;
-        sharedDDRow[r1 * TILE + c0] = (gI1 < n && mBase + c0 < n) ? __ldg(&D[gI1 * n + mBase + c0]) : INF;
-        sharedDDRow[r1 * TILE + c1] = (gI1 < n && mBase + c1 < n) ? __ldg(&D[gI1 * n + mBase + c1]) : INF;
-
-        sharedDDCol[r0 * TILE + c0] = (mBase + r0 < n && gJ0 < n) ? __ldg(&D[(mBase + r0) * n + gJ0]) : INF;
-        sharedDDCol[r0 * TILE + c1] = (mBase + r0 < n && gJ1 < n) ? __ldg(&D[(mBase + r0) * n + gJ1]) : INF;
-        sharedDDCol[r1 * TILE + c0] = (mBase + r1 < n && gJ0 < n) ? __ldg(&D[(mBase + r1) * n + gJ0]) : INF;
-        sharedDDCol[r1 * TILE + c1] = (mBase + r1 < n && gJ1 < n) ? __ldg(&D[(mBase + r1) * n + gJ1]) : INF;
-
+    int cur = 0;
+    if (l + 1 < blocksInStage) {
+        int mBase = (kBlockBase + l + 1) * TILE;
+        sharedDDRow[0][r0 * TILE + c0] = (gI0 < n && mBase + c0 < n) ? __ldg(&D[gI0 * n + mBase + c0]) : INF;
+        sharedDDRow[0][r0 * TILE + c1] = (gI0 < n && mBase + c1 < n) ? __ldg(&D[gI0 * n + mBase + c1]) : INF;
+        sharedDDRow[0][r1 * TILE + c0] = (gI1 < n && mBase + c0 < n) ? __ldg(&D[gI1 * n + mBase + c0]) : INF;
+        sharedDDRow[0][r1 * TILE + c1] = (gI1 < n && mBase + c1 < n) ? __ldg(&D[gI1 * n + mBase + c1]) : INF;
+        sharedDDCol[0][r0 * TILE + c0] = (mBase + r0 < n && gJ0 < n) ? __ldg(&D[(mBase + r0) * n + gJ0]) : INF;
+        sharedDDCol[0][r0 * TILE + c1] = (mBase + r0 < n && gJ1 < n) ? __ldg(&D[(mBase + r0) * n + gJ1]) : INF;
+        sharedDDCol[0][r1 * TILE + c0] = (mBase + r1 < n && gJ0 < n) ? __ldg(&D[(mBase + r1) * n + gJ0]) : INF;
+        sharedDDCol[0][r1 * TILE + c1] = (mBase + r1 < n && gJ1 < n) ? __ldg(&D[(mBase + r1) * n + gJ1]) : INF;
         __syncthreads();
+    }
+
+    for (int m = l + 1; m < blocksInStage; ++m) {
+        int nxt = 1 - cur;
+        if (m + 1 < blocksInStage) {
+            int mBase = (kBlockBase + m + 1) * TILE;
+            sharedDDRow[nxt][r0 * TILE + c0] = (gI0 < n && mBase + c0 < n) ? __ldg(&D[gI0 * n + mBase + c0]) : INF;
+            sharedDDRow[nxt][r0 * TILE + c1] = (gI0 < n && mBase + c1 < n) ? __ldg(&D[gI0 * n + mBase + c1]) : INF;
+            sharedDDRow[nxt][r1 * TILE + c0] = (gI1 < n && mBase + c0 < n) ? __ldg(&D[gI1 * n + mBase + c0]) : INF;
+            sharedDDRow[nxt][r1 * TILE + c1] = (gI1 < n && mBase + c1 < n) ? __ldg(&D[gI1 * n + mBase + c1]) : INF;
+            sharedDDCol[nxt][r0 * TILE + c0] = (mBase + r0 < n && gJ0 < n) ? __ldg(&D[(mBase + r0) * n + gJ0]) : INF;
+            sharedDDCol[nxt][r0 * TILE + c1] = (mBase + r0 < n && gJ1 < n) ? __ldg(&D[(mBase + r0) * n + gJ1]) : INF;
+            sharedDDCol[nxt][r1 * TILE + c0] = (mBase + r1 < n && gJ0 < n) ? __ldg(&D[(mBase + r1) * n + gJ0]) : INF;
+            sharedDDCol[nxt][r1 * TILE + c1] = (mBase + r1 < n && gJ1 < n) ? __ldg(&D[(mBase + r1) * n + gJ1]) : INF;
+        }
 
         #pragma unroll
         for (int k = 0; k < TILE; ++k) {
-            WeightType row0 = sharedDDRow[r0 * TILE + k];
-            WeightType row1 = sharedDDRow[r1 * TILE + k];
-            WeightType col0 = sharedDDCol[k * TILE + c0];
-            WeightType col1 = sharedDDCol[k * TILE + c1];
+            WeightType row0 = sharedDDRow[cur][r0 * TILE + k];
+            WeightType row1 = sharedDDRow[cur][r1 * TILE + k];
+            WeightType col0 = sharedDDCol[cur][k * TILE + c0];
+            WeightType col1 = sharedDDCol[cur][k * TILE + c1];
             c00 = min(c00, row0 + col0);
             c01 = min(c01, row0 + col1);
             c10 = min(c10, row1 + col0);
             c11 = min(c11, row1 + col1);
         }
+
+        __syncthreads();
+        cur = nxt;
     }
 
     if (gI0 < n && gJ0 < n) D[gI0 * n + gJ0] = c00;
@@ -393,40 +457,56 @@ __global__ void fwMLOptLeadColumnReverseKernel(
     int gJ0 = diagBase + c0;
     int gJ1 = diagBase + c1;
 
-    WeightType* sharedDDRow = sharedMem;
-    WeightType* sharedDDCol = sharedMem + TILE * TILE;
+    WeightType* sharedDDRow[2] = { sharedMem, sharedMem + TILE * TILE };
+    WeightType* sharedDDCol[2] = { sharedMem + 2 * TILE * TILE, sharedMem + 3 * TILE * TILE };
 
     WeightType c00 = (gI0 < n && gJ0 < n) ? __ldg(&D[gI0 * n + gJ0]) : INF;
     WeightType c01 = (gI0 < n && gJ1 < n) ? __ldg(&D[gI0 * n + gJ1]) : INF;
     WeightType c10 = (gI1 < n && gJ0 < n) ? __ldg(&D[gI1 * n + gJ0]) : INF;
     WeightType c11 = (gI1 < n && gJ1 < n) ? __ldg(&D[gI1 * n + gJ1]) : INF;
 
-    for (int m = l + 1; m < blocksInStage; ++m) {
-        int mBase = (kBlockBase + m) * TILE;
-
-        sharedDDRow[r0 * TILE + c0] = (gI0 < n && mBase + c0 < n) ? __ldg(&D[gI0 * n + mBase + c0]) : INF;
-        sharedDDRow[r0 * TILE + c1] = (gI0 < n && mBase + c1 < n) ? __ldg(&D[gI0 * n + mBase + c1]) : INF;
-        sharedDDRow[r1 * TILE + c0] = (gI1 < n && mBase + c0 < n) ? __ldg(&D[gI1 * n + mBase + c0]) : INF;
-        sharedDDRow[r1 * TILE + c1] = (gI1 < n && mBase + c1 < n) ? __ldg(&D[gI1 * n + mBase + c1]) : INF;
-
-        sharedDDCol[r0 * TILE + c0] = (mBase + r0 < n && gJ0 < n) ? __ldg(&D[(mBase + r0) * n + gJ0]) : INF;
-        sharedDDCol[r0 * TILE + c1] = (mBase + r0 < n && gJ1 < n) ? __ldg(&D[(mBase + r0) * n + gJ1]) : INF;
-        sharedDDCol[r1 * TILE + c0] = (mBase + r1 < n && gJ0 < n) ? __ldg(&D[(mBase + r1) * n + gJ0]) : INF;
-        sharedDDCol[r1 * TILE + c1] = (mBase + r1 < n && gJ1 < n) ? __ldg(&D[(mBase + r1) * n + gJ1]) : INF;
-
+    int cur = 0;
+    if (l + 1 < blocksInStage) {
+        int mBase = (kBlockBase + l + 1) * TILE;
+        sharedDDRow[0][r0 * TILE + c0] = (gI0 < n && mBase + c0 < n) ? __ldg(&D[gI0 * n + mBase + c0]) : INF;
+        sharedDDRow[0][r0 * TILE + c1] = (gI0 < n && mBase + c1 < n) ? __ldg(&D[gI0 * n + mBase + c1]) : INF;
+        sharedDDRow[0][r1 * TILE + c0] = (gI1 < n && mBase + c0 < n) ? __ldg(&D[gI1 * n + mBase + c0]) : INF;
+        sharedDDRow[0][r1 * TILE + c1] = (gI1 < n && mBase + c1 < n) ? __ldg(&D[gI1 * n + mBase + c1]) : INF;
+        sharedDDCol[0][r0 * TILE + c0] = (mBase + r0 < n && gJ0 < n) ? __ldg(&D[(mBase + r0) * n + gJ0]) : INF;
+        sharedDDCol[0][r0 * TILE + c1] = (mBase + r0 < n && gJ1 < n) ? __ldg(&D[(mBase + r0) * n + gJ1]) : INF;
+        sharedDDCol[0][r1 * TILE + c0] = (mBase + r1 < n && gJ0 < n) ? __ldg(&D[(mBase + r1) * n + gJ0]) : INF;
+        sharedDDCol[0][r1 * TILE + c1] = (mBase + r1 < n && gJ1 < n) ? __ldg(&D[(mBase + r1) * n + gJ1]) : INF;
         __syncthreads();
+    }
+
+    for (int m = l + 1; m < blocksInStage; ++m) {
+        int nxt = 1 - cur;
+        if (m + 1 < blocksInStage) {
+            int mBase = (kBlockBase + m + 1) * TILE;
+            sharedDDRow[nxt][r0 * TILE + c0] = (gI0 < n && mBase + c0 < n) ? __ldg(&D[gI0 * n + mBase + c0]) : INF;
+            sharedDDRow[nxt][r0 * TILE + c1] = (gI0 < n && mBase + c1 < n) ? __ldg(&D[gI0 * n + mBase + c1]) : INF;
+            sharedDDRow[nxt][r1 * TILE + c0] = (gI1 < n && mBase + c0 < n) ? __ldg(&D[gI1 * n + mBase + c0]) : INF;
+            sharedDDRow[nxt][r1 * TILE + c1] = (gI1 < n && mBase + c1 < n) ? __ldg(&D[gI1 * n + mBase + c1]) : INF;
+            sharedDDCol[nxt][r0 * TILE + c0] = (mBase + r0 < n && gJ0 < n) ? __ldg(&D[(mBase + r0) * n + gJ0]) : INF;
+            sharedDDCol[nxt][r0 * TILE + c1] = (mBase + r0 < n && gJ1 < n) ? __ldg(&D[(mBase + r0) * n + gJ1]) : INF;
+            sharedDDCol[nxt][r1 * TILE + c0] = (mBase + r1 < n && gJ0 < n) ? __ldg(&D[(mBase + r1) * n + gJ0]) : INF;
+            sharedDDCol[nxt][r1 * TILE + c1] = (mBase + r1 < n && gJ1 < n) ? __ldg(&D[(mBase + r1) * n + gJ1]) : INF;
+        }
 
         #pragma unroll
         for (int k = 0; k < TILE; ++k) {
-            WeightType row0 = sharedDDRow[r0 * TILE + k];
-            WeightType row1 = sharedDDRow[r1 * TILE + k];
-            WeightType col0 = sharedDDCol[k * TILE + c0];
-            WeightType col1 = sharedDDCol[k * TILE + c1];
+            WeightType row0 = sharedDDRow[cur][r0 * TILE + k];
+            WeightType row1 = sharedDDRow[cur][r1 * TILE + k];
+            WeightType col0 = sharedDDCol[cur][k * TILE + c0];
+            WeightType col1 = sharedDDCol[cur][k * TILE + c1];
             c00 = min(c00, row0 + col0);
             c01 = min(c01, row0 + col1);
             c10 = min(c10, row1 + col0);
             c11 = min(c11, row1 + col1);
         }
+
+        __syncthreads();
+        cur = nxt;
     }
 
     if (gI0 < n && gJ0 < n) D[gI0 * n + gJ0] = c00;
@@ -462,40 +542,56 @@ __global__ void fwMLOptRestBlocksKernel(
     int gJ0 = colTile * TILE + c0;
     int gJ1 = colTile * TILE + c1;
 
-    WeightType* sharedRow = sharedMem;
-    WeightType* sharedCol = sharedMem + TILE * TILE;
+    WeightType* sharedRow[2] = { sharedMem, sharedMem + TILE * TILE };
+    WeightType* sharedCol[2] = { sharedMem + 2 * TILE * TILE, sharedMem + 3 * TILE * TILE };
 
     WeightType c00 = (gI0 < n && gJ0 < n) ? __ldg(&D[gI0 * n + gJ0]) : INF;
     WeightType c01 = (gI0 < n && gJ1 < n) ? __ldg(&D[gI0 * n + gJ1]) : INF;
     WeightType c10 = (gI1 < n && gJ0 < n) ? __ldg(&D[gI1 * n + gJ0]) : INF;
     WeightType c11 = (gI1 < n && gJ1 < n) ? __ldg(&D[gI1 * n + gJ1]) : INF;
 
-    for (int m = 0; m < blocksInStage; ++m) {
-        int mBase = (kBlockBase + m) * TILE;
-
-        sharedRow[r0 * TILE + c0] = (gI0 < n && mBase + c0 < n) ? __ldg(&D[gI0 * n + mBase + c0]) : INF;
-        sharedRow[r0 * TILE + c1] = (gI0 < n && mBase + c1 < n) ? __ldg(&D[gI0 * n + mBase + c1]) : INF;
-        sharedRow[r1 * TILE + c0] = (gI1 < n && mBase + c0 < n) ? __ldg(&D[gI1 * n + mBase + c0]) : INF;
-        sharedRow[r1 * TILE + c1] = (gI1 < n && mBase + c1 < n) ? __ldg(&D[gI1 * n + mBase + c1]) : INF;
-
-        sharedCol[r0 * TILE + c0] = (mBase + r0 < n && gJ0 < n) ? __ldg(&D[(mBase + r0) * n + gJ0]) : INF;
-        sharedCol[r0 * TILE + c1] = (mBase + r0 < n && gJ1 < n) ? __ldg(&D[(mBase + r0) * n + gJ1]) : INF;
-        sharedCol[r1 * TILE + c0] = (mBase + r1 < n && gJ0 < n) ? __ldg(&D[(mBase + r1) * n + gJ0]) : INF;
-        sharedCol[r1 * TILE + c1] = (mBase + r1 < n && gJ1 < n) ? __ldg(&D[(mBase + r1) * n + gJ1]) : INF;
-
+    int cur = 0;
+    if (blocksInStage > 0) {
+        int mBase = kBlockBase * TILE;
+        sharedRow[0][r0 * TILE + c0] = (gI0 < n && mBase + c0 < n) ? __ldg(&D[gI0 * n + mBase + c0]) : INF;
+        sharedRow[0][r0 * TILE + c1] = (gI0 < n && mBase + c1 < n) ? __ldg(&D[gI0 * n + mBase + c1]) : INF;
+        sharedRow[0][r1 * TILE + c0] = (gI1 < n && mBase + c0 < n) ? __ldg(&D[gI1 * n + mBase + c0]) : INF;
+        sharedRow[0][r1 * TILE + c1] = (gI1 < n && mBase + c1 < n) ? __ldg(&D[gI1 * n + mBase + c1]) : INF;
+        sharedCol[0][r0 * TILE + c0] = (mBase + r0 < n && gJ0 < n) ? __ldg(&D[(mBase + r0) * n + gJ0]) : INF;
+        sharedCol[0][r0 * TILE + c1] = (mBase + r0 < n && gJ1 < n) ? __ldg(&D[(mBase + r0) * n + gJ1]) : INF;
+        sharedCol[0][r1 * TILE + c0] = (mBase + r1 < n && gJ0 < n) ? __ldg(&D[(mBase + r1) * n + gJ0]) : INF;
+        sharedCol[0][r1 * TILE + c1] = (mBase + r1 < n && gJ1 < n) ? __ldg(&D[(mBase + r1) * n + gJ1]) : INF;
         __syncthreads();
+    }
+
+    for (int m = 0; m < blocksInStage; ++m) {
+        int nxt = 1 - cur;
+        if (m + 1 < blocksInStage) {
+            int mBase = (kBlockBase + m + 1) * TILE;
+            sharedRow[nxt][r0 * TILE + c0] = (gI0 < n && mBase + c0 < n) ? __ldg(&D[gI0 * n + mBase + c0]) : INF;
+            sharedRow[nxt][r0 * TILE + c1] = (gI0 < n && mBase + c1 < n) ? __ldg(&D[gI0 * n + mBase + c1]) : INF;
+            sharedRow[nxt][r1 * TILE + c0] = (gI1 < n && mBase + c0 < n) ? __ldg(&D[gI1 * n + mBase + c0]) : INF;
+            sharedRow[nxt][r1 * TILE + c1] = (gI1 < n && mBase + c1 < n) ? __ldg(&D[gI1 * n + mBase + c1]) : INF;
+            sharedCol[nxt][r0 * TILE + c0] = (mBase + r0 < n && gJ0 < n) ? __ldg(&D[(mBase + r0) * n + gJ0]) : INF;
+            sharedCol[nxt][r0 * TILE + c1] = (mBase + r0 < n && gJ1 < n) ? __ldg(&D[(mBase + r0) * n + gJ1]) : INF;
+            sharedCol[nxt][r1 * TILE + c0] = (mBase + r1 < n && gJ0 < n) ? __ldg(&D[(mBase + r1) * n + gJ0]) : INF;
+            sharedCol[nxt][r1 * TILE + c1] = (mBase + r1 < n && gJ1 < n) ? __ldg(&D[(mBase + r1) * n + gJ1]) : INF;
+        }
 
         #pragma unroll
         for (int k = 0; k < TILE; ++k) {
-            WeightType row0 = sharedRow[r0 * TILE + k];
-            WeightType row1 = sharedRow[r1 * TILE + k];
-            WeightType col0 = sharedCol[k * TILE + c0];
-            WeightType col1 = sharedCol[k * TILE + c1];
+            WeightType row0 = sharedRow[cur][r0 * TILE + k];
+            WeightType row1 = sharedRow[cur][r1 * TILE + k];
+            WeightType col0 = sharedCol[cur][k * TILE + c0];
+            WeightType col1 = sharedCol[cur][k * TILE + c1];
             c00 = min(c00, row0 + col0);
             c01 = min(c01, row0 + col1);
             c10 = min(c10, row1 + col0);
             c11 = min(c11, row1 + col1);
         }
+
+        __syncthreads();
+        cur = nxt;
     }
 
     if (gI0 < n && gJ0 < n) D[gI0 * n + gJ0] = c00;
@@ -523,19 +619,19 @@ void fwMultiLayerTilingOptimizedGPU(WeightType* d_D, int n, int tileSize, int ka
         int blocksInStage = min(kappa, numTiles - kBlockBase);
 
         for (int l = 0; l < blocksInStage; ++l) {
-            fwMLOptLeadBlockKernel<TILE><<<1, blockDim, 3 * tileBytes>>>(
+            fwMLOptLeadBlockKernel<TILE><<<1, blockDim, 5 * tileBytes>>>(
                 d_D, n, kBlockBase, l
             );
             checkKernelErrors();
 
             int numRowColTiles = numTiles - 1;
             if (numRowColTiles > 0) {
-                fwMLOptLeadRowKernel<TILE><<<numRowColTiles, blockDim, 4 * tileBytes>>>(
+                fwMLOptLeadRowKernel<TILE><<<numRowColTiles, blockDim, 6 * tileBytes>>>(
                     d_D, n, numTiles, kBlockBase, l
                 );
                 checkKernelErrors();
 
-                fwMLOptLeadColumnKernel<TILE><<<numRowColTiles, blockDim, 4 * tileBytes>>>(
+                fwMLOptLeadColumnKernel<TILE><<<numRowColTiles, blockDim, 6 * tileBytes>>>(
                     d_D, n, numTiles, kBlockBase, l
                 );
                 checkKernelErrors();
@@ -547,7 +643,7 @@ void fwMultiLayerTilingOptimizedGPU(WeightType* d_D, int n, int tileSize, int ka
 
             int numRowTiles = (currentK + 1) + max(0, numTiles - (kBlockBase + blocksInStage));
             if (numRowTiles > 0) {
-                fwMLOptLeadRowReverseKernel<TILE><<<numRowTiles, blockDim, 2 * tileBytes>>>(
+                fwMLOptLeadRowReverseKernel<TILE><<<numRowTiles, blockDim, 4 * tileBytes>>>(
                     d_D, n, numTiles, kBlockBase, blocksInStage, l
                 );
                 checkKernelErrors();
@@ -555,7 +651,7 @@ void fwMultiLayerTilingOptimizedGPU(WeightType* d_D, int n, int tileSize, int ka
 
             int numColTiles = currentK + max(0, numTiles - (kBlockBase + blocksInStage));
             if (numColTiles > 0) {
-                fwMLOptLeadColumnReverseKernel<TILE><<<numColTiles, blockDim, 2 * tileBytes>>>(
+                fwMLOptLeadColumnReverseKernel<TILE><<<numColTiles, blockDim, 4 * tileBytes>>>(
                     d_D, n, numTiles, kBlockBase, blocksInStage, l
                 );
                 checkKernelErrors();
@@ -566,7 +662,7 @@ void fwMultiLayerTilingOptimizedGPU(WeightType* d_D, int n, int tileSize, int ka
             int numActiveTiles = numTiles - blocksInStage;
             dim3 gridRest(numActiveTiles, numActiveTiles);
 
-            fwMLOptRestBlocksKernel<TILE><<<gridRest, blockDim, 2 * tileBytes>>>(
+            fwMLOptRestBlocksKernel<TILE><<<gridRest, blockDim, 4 * tileBytes>>>(
                 d_D, n, numTiles, kBlockBase, blocksInStage
             );
             checkKernelErrors();
