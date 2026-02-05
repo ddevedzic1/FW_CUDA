@@ -2,8 +2,8 @@
 #include "cuda_utils.cuh"
 
 constexpr int DEFAULT_TILE_SIZE = 32;
-constexpr int DEFAULT_KAPPA     = 4;
-constexpr int MAX_KAPPA         = 8;
+constexpr int DEFAULT_KAPPA = 4;
+constexpr int MAX_KAPPA = 16;
 
 extern __shared__ WeightType sharedMem[];
 
