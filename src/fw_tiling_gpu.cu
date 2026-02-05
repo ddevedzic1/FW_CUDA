@@ -102,12 +102,12 @@ __global__ void fwTilingColumnKernel(
     }
 }
 
+template<int TILE>
 __global__ void fwTilingOthersKernel(
     WeightType* __restrict__ D,
     int n,
     int tile
 ) {
-    int tileSize = blockDim.x;
     int tx = threadIdx.x;
     int ty = threadIdx.y;
     int bx = blockIdx.x;
@@ -117,21 +117,22 @@ __global__ void fwTilingOthersKernel(
     int rowTile = by < tile ? by : by + 1;
 
     WeightType* sharedRow = sharedMem;
-    WeightType* sharedCol = sharedMem + tileSize * tileSize;
+    WeightType* sharedCol = sharedMem + TILE * TILE;
 
-    int diagBase = tile * tileSize;
+    int diagBase = tile * TILE;
 
-    int currI = rowTile * tileSize + ty;
-    int currJ = colTile * tileSize + tx;
+    int currI = rowTile * TILE + ty;
+    int currJ = colTile * TILE + tx;
 
-    sharedRow[ty * tileSize + tx] = (currI < n && diagBase + tx < n) ? D[currI * n + diagBase + tx] : INF;
-    sharedCol[ty * tileSize + tx] = (diagBase + ty < n && currJ < n) ? D[(diagBase + ty) * n + currJ] : INF;
+    sharedRow[ty * TILE + tx] = (currI < n && diagBase + tx < n) ? D[currI * n + diagBase + tx] : INF;
+    sharedCol[ty * TILE + tx] = (diagBase + ty < n && currJ < n) ? D[(diagBase + ty) * n + currJ] : INF;
 
     WeightType currVal = (currI < n && currJ < n) ? D[currI * n + currJ] : INF;
     __syncthreads();
 
-    for (int k = 0; k < tileSize; ++k) {
-        currVal = min(currVal, sharedRow[ty * tileSize + k] + sharedCol[k * tileSize + tx]);
+    #pragma unroll
+    for (int k = 0; k < TILE; ++k) {
+        currVal = min(currVal, sharedRow[ty * TILE + k] + sharedCol[k * TILE + tx]);
     }
 
     if (currI < n && currJ < n) {
@@ -165,7 +166,7 @@ void fwTilingGPU(WeightType* d_D, int n, int tileSize, int kappa) {
             checkKernelErrors();
 
             dim3 gridOthers(numTiles - 1, numTiles - 1);
-            fwTilingOthersKernel<<<gridOthers, blockDim, 2 * tileBytes>>>(d_D, n, tile);
+            fwTilingOthersKernel<DEFAULT_TILE_SIZE><<<gridOthers, blockDim, 2 * tileBytes>>>(d_D, n, tile);
             checkKernelErrors();
         }
     }
