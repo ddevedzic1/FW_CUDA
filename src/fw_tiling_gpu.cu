@@ -20,7 +20,7 @@ __global__ void fwTilingDiagonalKernel(
     int i = base + ty;
     int j = base + tx;
 
-    sharedD[ty * tileSize + tx] = (i < n && j < n) ? D[i * n + j] : INF;
+    sharedD[ty * tileSize + tx] = (i < n && j < n) ? __ldg(&D[i * n + j]) : INF;
     __syncthreads();
 
     for (int k = 0; k < tileSize; ++k) {
@@ -53,8 +53,8 @@ __global__ void fwTilingRowKernel(
     int i = diagBase + ty;
     int j = colTile * tileSize + tx;
 
-    sharedDiag[ty * tileSize + tx] = (i < n && diagBase + tx < n) ? D[i * n + diagBase + tx] : INF;
-    sharedCurr[ty * tileSize + tx] = (i < n && j < n) ? D[i * n + j] : INF;
+    sharedDiag[ty * tileSize + tx] = (i < n && diagBase + tx < n) ? __ldg(&D[i * n + diagBase + tx]) : INF;
+    sharedCurr[ty * tileSize + tx] = (i < n && j < n) ? __ldg(&D[i * n + j]) : INF;
     __syncthreads();
 
     for (int k = 0; k < tileSize; ++k) {
@@ -87,8 +87,8 @@ __global__ void fwTilingColumnKernel(
     int i = rowTile * tileSize + ty;
     int j = diagBase + tx;
 
-    sharedDiag[ty * tileSize + tx] = (diagBase + ty < n && j < n) ? D[(diagBase + ty) * n + j] : INF;
-    sharedCurr[ty * tileSize + tx] = (i < n && j < n) ? D[i * n + j] : INF;
+    sharedDiag[ty * tileSize + tx] = (diagBase + ty < n && j < n) ? __ldg(&D[(diagBase + ty) * n + j]) : INF;
+    sharedCurr[ty * tileSize + tx] = (i < n && j < n) ? __ldg(&D[i * n + j]) : INF;
     __syncthreads();
 
     for (int k = 0; k < tileSize; ++k) {
@@ -124,10 +124,10 @@ __global__ void fwTilingOthersKernel(
     int currI = rowTile * TILE + ty;
     int currJ = colTile * TILE + tx;
 
-    sharedRow[ty * TILE + tx] = (currI < n && diagBase + tx < n) ? D[currI * n + diagBase + tx] : INF;
-    sharedCol[ty * TILE + tx] = (diagBase + ty < n && currJ < n) ? D[(diagBase + ty) * n + currJ] : INF;
+    sharedRow[ty * TILE + tx] = (currI < n && diagBase + tx < n) ? __ldg(&D[currI * n + diagBase + tx]) : INF;
+    sharedCol[ty * TILE + tx] = (diagBase + ty < n && currJ < n) ? __ldg(&D[(diagBase + ty) * n + currJ]) : INF;
 
-    WeightType currVal = (currI < n && currJ < n) ? D[currI * n + currJ] : INF;
+    WeightType currVal = (currI < n && currJ < n) ? __ldg(&D[currI * n + currJ]) : INF;
     __syncthreads();
 
     #pragma unroll
