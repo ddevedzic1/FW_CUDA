@@ -23,14 +23,15 @@ __global__ void fwMLOptLeadBlockKernel(
     int globalJ   = diagBase + tx;
 
     WeightType* sharedDiag = sharedMem;
-    WeightType* sharedCol  = sharedMem + TILE * TILE;
+    WeightType* sharedRow  = sharedMem +     TILE * TILE;
+    WeightType* sharedCol  = sharedMem + 2 * TILE * TILE;
 
     WeightType currVal = (globalI < n && globalJ < n) ? __ldg(&D[globalI * n + globalJ]) : INF;
 
     for (int m = 0; m < l; ++m) {
         int mBase = (kBlockBase + m) * TILE;
 
-        WeightType rowVal = (globalI < n && mBase + tx < n)
+        sharedRow[ty * TILE + tx] = (globalI < n && mBase + tx < n)
             ? __ldg(&D[globalI * n + mBase + tx]) : INF;
         sharedCol[ty * TILE + tx] = (mBase + ty < n && globalJ < n)
             ? __ldg(&D[(mBase + ty) * n + globalJ]) : INF;
@@ -39,10 +40,8 @@ __global__ void fwMLOptLeadBlockKernel(
 
         #pragma unroll
         for (int k = 0; k < TILE; ++k) {
-            currVal = min(currVal, __shfl_sync(0xFFFFFFFF, rowVal, k) + sharedCol[k * TILE + tx]);
+            currVal = min(currVal, sharedRow[ty * TILE + k] + sharedCol[k * TILE + tx]);
         }
-
-        __syncthreads();
     }
 
     sharedDiag[ty * TILE + tx] = currVal;
@@ -83,7 +82,8 @@ __global__ void fwMLOptLeadRowKernel(
 
     WeightType* sharedDiag  = sharedMem;
     WeightType* sharedCurr  = sharedMem +     TILE * TILE;
-    WeightType* sharedDDCol = sharedMem + 2 * TILE * TILE;
+    WeightType* sharedDDRow = sharedMem + 2 * TILE * TILE;
+    WeightType* sharedDDCol = sharedMem + 3 * TILE * TILE;
 
     WeightType currVal = (globalI < n && globalJ < n) ? __ldg(&D[globalI * n + globalJ]) : INF;
 
@@ -93,7 +93,7 @@ __global__ void fwMLOptLeadRowKernel(
     for (int m = mStart; m < l; ++m) {
         int mBase = (kBlockBase + m) * TILE;
 
-        WeightType rowVal = (globalI < n && mBase + tx < n)
+        sharedDDRow[ty * TILE + tx] = (globalI < n && mBase + tx < n)
             ? __ldg(&D[globalI * n + mBase + tx]) : INF;
         sharedDDCol[ty * TILE + tx] = (mBase + ty < n && globalJ < n)
             ? __ldg(&D[(mBase + ty) * n + globalJ]) : INF;
@@ -102,10 +102,8 @@ __global__ void fwMLOptLeadRowKernel(
 
         #pragma unroll
         for (int k = 0; k < TILE; ++k) {
-            currVal = min(currVal, __shfl_sync(0xFFFFFFFF, rowVal, k) + sharedDDCol[k * TILE + tx]);
+            currVal = min(currVal, sharedDDRow[ty * TILE + k] + sharedDDCol[k * TILE + tx]);
         }
-
-        __syncthreads();
     }
 
     sharedDiag[ty * TILE + tx] = (diagBase + ty < n && diagBase + tx < n)
@@ -148,7 +146,8 @@ __global__ void fwMLOptLeadColumnKernel(
 
     WeightType* sharedDiag  = sharedMem;
     WeightType* sharedCurr  = sharedMem +     TILE * TILE;
-    WeightType* sharedDDCol = sharedMem + 2 * TILE * TILE;
+    WeightType* sharedDDRow = sharedMem + 2 * TILE * TILE;
+    WeightType* sharedDDCol = sharedMem + 3 * TILE * TILE;
 
     WeightType currVal = (globalI < n && globalJ < n) ? __ldg(&D[globalI * n + globalJ]) : INF;
 
@@ -158,7 +157,7 @@ __global__ void fwMLOptLeadColumnKernel(
     for (int m = mStart; m < l; ++m) {
         int mBase = (kBlockBase + m) * TILE;
 
-        WeightType rowVal = (globalI < n && mBase + tx < n)
+        sharedDDRow[ty * TILE + tx] = (globalI < n && mBase + tx < n)
             ? __ldg(&D[globalI * n + mBase + tx]) : INF;
         sharedDDCol[ty * TILE + tx] = (mBase + ty < n && globalJ < n)
             ? __ldg(&D[(mBase + ty) * n + globalJ]) : INF;
@@ -167,10 +166,8 @@ __global__ void fwMLOptLeadColumnKernel(
 
         #pragma unroll
         for (int k = 0; k < TILE; ++k) {
-            currVal = min(currVal, __shfl_sync(0xFFFFFFFF, rowVal, k) + sharedDDCol[k * TILE + tx]);
+            currVal = min(currVal, sharedDDRow[ty * TILE + k] + sharedDDCol[k * TILE + tx]);
         }
-
-        __syncthreads();
     }
 
     sharedDiag[ty * TILE + tx] = (diagBase + ty < n && diagBase + tx < n)
@@ -217,14 +214,15 @@ __global__ void fwMLOptLeadRowReverseKernel(
     int globalI  = diagBase + ty;
     int globalJ  = colBase  + tx;
 
-    WeightType* sharedDDCol = sharedMem;
+    WeightType* sharedDDRow = sharedMem;
+    WeightType* sharedDDCol = sharedMem + TILE * TILE;
 
     WeightType currVal = (globalI < n && globalJ < n) ? __ldg(&D[globalI * n + globalJ]) : INF;
 
     for (int m = l + 1; m < blocksInStage; ++m) {
         int mBase = (kBlockBase + m) * TILE;
 
-        WeightType rowVal = (globalI < n && mBase + tx < n)
+        sharedDDRow[ty * TILE + tx] = (globalI < n && mBase + tx < n)
             ? __ldg(&D[globalI * n + mBase + tx]) : INF;
         sharedDDCol[ty * TILE + tx] = (mBase + ty < n && globalJ < n)
             ? __ldg(&D[(mBase + ty) * n + globalJ]) : INF;
@@ -233,10 +231,8 @@ __global__ void fwMLOptLeadRowReverseKernel(
 
         #pragma unroll
         for (int k = 0; k < TILE; ++k) {
-            currVal = min(currVal, __shfl_sync(0xFFFFFFFF, rowVal, k) + sharedDDCol[k * TILE + tx]);
+            currVal = min(currVal, sharedDDRow[ty * TILE + k] + sharedDDCol[k * TILE + tx]);
         }
-
-        __syncthreads();
     }
 
     if (globalI < n && globalJ < n) {
@@ -270,14 +266,15 @@ __global__ void fwMLOptLeadColumnReverseKernel(
     int globalI  = rowBase  + ty;
     int globalJ  = diagBase + tx;
 
-    WeightType* sharedDDCol = sharedMem;
+    WeightType* sharedDDRow = sharedMem;
+    WeightType* sharedDDCol = sharedMem + TILE * TILE;
 
     WeightType currVal = (globalI < n && globalJ < n) ? __ldg(&D[globalI * n + globalJ]) : INF;
 
     for (int m = l + 1; m < blocksInStage; ++m) {
         int mBase = (kBlockBase + m) * TILE;
 
-        WeightType rowVal = (globalI < n && mBase + tx < n)
+        sharedDDRow[ty * TILE + tx] = (globalI < n && mBase + tx < n)
             ? __ldg(&D[globalI * n + mBase + tx]) : INF;
         sharedDDCol[ty * TILE + tx] = (mBase + ty < n && globalJ < n)
             ? __ldg(&D[(mBase + ty) * n + globalJ]) : INF;
@@ -286,10 +283,8 @@ __global__ void fwMLOptLeadColumnReverseKernel(
 
         #pragma unroll
         for (int k = 0; k < TILE; ++k) {
-            currVal = min(currVal, __shfl_sync(0xFFFFFFFF, rowVal, k) + sharedDDCol[k * TILE + tx]);
+            currVal = min(currVal, sharedDDRow[ty * TILE + k] + sharedDDCol[k * TILE + tx]);
         }
-
-        __syncthreads();
     }
 
     if (globalI < n && globalJ < n) {
@@ -318,14 +313,15 @@ __global__ void fwMLOptRestBlocksKernel(
     int globalI = rowTile * TILE + ty;
     int globalJ = colTile * TILE + tx;
 
-    WeightType* sharedCol = sharedMem;
+    WeightType* sharedRow = sharedMem;
+    WeightType* sharedCol = sharedMem + TILE * TILE;
 
     WeightType currVal = (globalI < n && globalJ < n) ? __ldg(&D[globalI * n + globalJ]) : INF;
 
     for (int m = 0; m < blocksInStage; ++m) {
         int mBase = (kBlockBase + m) * TILE;
 
-        WeightType rowVal = (globalI < n && mBase + tx < n)
+        sharedRow[ty * TILE + tx] = (globalI < n && mBase + tx < n)
             ? __ldg(&D[globalI * n + mBase + tx]) : INF;
         sharedCol[ty * TILE + tx] = (mBase + ty < n && globalJ < n)
             ? __ldg(&D[(mBase + ty) * n + globalJ]) : INF;
@@ -334,10 +330,8 @@ __global__ void fwMLOptRestBlocksKernel(
 
         #pragma unroll
         for (int k = 0; k < TILE; ++k) {
-            currVal = min(currVal, __shfl_sync(0xFFFFFFFF, rowVal, k) + sharedCol[k * TILE + tx]);
+            currVal = min(currVal, sharedRow[ty * TILE + k] + sharedCol[k * TILE + tx]);
         }
-
-        __syncthreads();
     }
 
     if (globalI < n && globalJ < n) {
@@ -364,19 +358,19 @@ void fwMultiLayerTilingOptimizedGPU(WeightType* d_D, int n, int tileSize, int ka
         int blocksInStage = min(kappa, numTiles - kBlockBase);
 
         for (int l = 0; l < blocksInStage; ++l) {
-            fwMLOptLeadBlockKernel<TILE><<<1, blockDim, 2 * tileBytes>>>(
+            fwMLOptLeadBlockKernel<TILE><<<1, blockDim, 3 * tileBytes>>>(
                 d_D, n, kBlockBase, l
             );
             checkKernelErrors();
 
             int numRowColTiles = numTiles - 1;
             if (numRowColTiles > 0) {
-                fwMLOptLeadRowKernel<TILE><<<numRowColTiles, blockDim, 3 * tileBytes>>>(
+                fwMLOptLeadRowKernel<TILE><<<numRowColTiles, blockDim, 4 * tileBytes>>>(
                     d_D, n, numTiles, kBlockBase, l
                 );
                 checkKernelErrors();
 
-                fwMLOptLeadColumnKernel<TILE><<<numRowColTiles, blockDim, 3 * tileBytes>>>(
+                fwMLOptLeadColumnKernel<TILE><<<numRowColTiles, blockDim, 4 * tileBytes>>>(
                     d_D, n, numTiles, kBlockBase, l
                 );
                 checkKernelErrors();
@@ -388,7 +382,7 @@ void fwMultiLayerTilingOptimizedGPU(WeightType* d_D, int n, int tileSize, int ka
 
             int numRowTiles = (currentK + 1) + max(0, numTiles - (kBlockBase + blocksInStage));
             if (numRowTiles > 0) {
-                fwMLOptLeadRowReverseKernel<TILE><<<numRowTiles, blockDim, tileBytes>>>(
+                fwMLOptLeadRowReverseKernel<TILE><<<numRowTiles, blockDim, 2 * tileBytes>>>(
                     d_D, n, numTiles, kBlockBase, blocksInStage, l
                 );
                 checkKernelErrors();
@@ -396,7 +390,7 @@ void fwMultiLayerTilingOptimizedGPU(WeightType* d_D, int n, int tileSize, int ka
 
             int numColTiles = currentK + max(0, numTiles - (kBlockBase + blocksInStage));
             if (numColTiles > 0) {
-                fwMLOptLeadColumnReverseKernel<TILE><<<numColTiles, blockDim, tileBytes>>>(
+                fwMLOptLeadColumnReverseKernel<TILE><<<numColTiles, blockDim, 2 * tileBytes>>>(
                     d_D, n, numTiles, kBlockBase, blocksInStage, l
                 );
                 checkKernelErrors();
@@ -407,7 +401,7 @@ void fwMultiLayerTilingOptimizedGPU(WeightType* d_D, int n, int tileSize, int ka
             int numActiveTiles = numTiles - blocksInStage;
             dim3 gridRest(numActiveTiles, numActiveTiles);
 
-            fwMLOptRestBlocksKernel<TILE><<<gridRest, blockDim, tileBytes>>>(
+            fwMLOptRestBlocksKernel<TILE><<<gridRest, blockDim, 2 * tileBytes>>>(
                 d_D, n, numTiles, kBlockBase, blocksInStage
             );
             checkKernelErrors();
