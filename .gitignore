@@ -371,3 +371,6 @@ bin/
 out/
 int/
 lib/
+
+# Profiler binary files (can be regenerated)
+profiler/*.ncu-rep
