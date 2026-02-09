@@ -1,0 +1,5 @@
+"ID","Process ID","Process Name","Host Name","Kernel Name","Context","Stream","Block Size","Grid Size","Device","CC","dram__bytes_read.sum","dram__bytes_write.sum","gpu__time_duration.sum","sm__warps_active.avg.pct_of_peak_sustained_active"
+"","","","","","","","","","","","Mbyte","Kbyte","us","%"
+"0","80999","bench_runner","127.0.0.1","Timer::warmupKernel()","1","7","(1, 1, 1)","(1, 1, 1)","0","7.5","0.002752","0.000000","2.400000","3.113426"
+"1","80999","bench_runner","127.0.0.1","void fwTilingDiagonalKernel<32>(int *, int, int)","1","7","(16, 16, 1)","(1, 1, 1)","0","7.5","0.011072","0.000000","11.712000","24.875181"
+"2","80999","bench_runner","127.0.0.1","void fwTilingRowKernel<32>(int *, int, int)","1","7","(16, 16, 1)","(255, 1, 1)","0","7.5","1.429440","276.928000","74.848000","84.263554"
